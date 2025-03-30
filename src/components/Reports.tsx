@@ -15,7 +15,6 @@ import {
   TableRow,
   Card,
   CardContent,
-  CircularProgress,
   IconButton,
   useTheme,
 } from '@mui/material';
@@ -26,7 +25,6 @@ import {
   TableChart as CsvIcon,
   Print as PrintIcon,
   Share as ShareIcon,
-  DateRange as DateRangeIcon,
 } from '@mui/icons-material';
 import {
   BarChart,
@@ -61,14 +59,6 @@ const StyledCard = styled(Card)(({ theme }) => ({
   },
 }));
 
-const StyledButton = styled(Button)(({ theme }) => ({
-  transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-  '&:hover': {
-    transform: 'translateY(-2px)',
-    boxShadow: theme.shadows[4],
-  },
-}));
-
 interface ReportData {
   id: string;
   name: string;
@@ -80,67 +70,197 @@ interface ReportData {
 const Reports: React.FC = () => {
   const theme = useTheme();
   const [reportType, setReportType] = useState('monthly');
-  const [dateRange, setDateRange] = useState('last30');
-  const [loading, setLoading] = useState(false);
-  const [reportData, setReportData] = useState<any[]>([]);
+  const [dateRange, setDateRange] = useState({
+    start: new Date().toISOString().split('T')[0],
+    end: new Date().toISOString().split('T')[0],
+  });
 
   const donationData = [
-    { month: 'Jan', meals: 1200, ngos: 8 },
-    { month: 'Feb', meals: 1500, ngos: 10 },
-    { month: 'Mar', meals: 1800, ngos: 12 },
-    { month: 'Apr', meals: 2000, ngos: 15 },
-    { month: 'May', meals: 2200, ngos: 18 },
-    { month: 'Jun', meals: 2500, ngos: 20 },
+    { month: 'Jan', donations: 65, meals: 28 },
+    { month: 'Feb', donations: 59, meals: 48 },
+    { month: 'Mar', donations: 80, meals: 40 },
+    { month: 'Apr', donations: 81, meals: 19 },
+    { month: 'May', donations: 56, meals: 86 },
+    { month: 'Jun', donations: 55, meals: 27 },
   ];
 
   const recentReports: ReportData[] = [
     {
       id: '1',
-      name: 'Monthly Donation Report - March 2024',
+      name: 'Monthly Donation Summary',
       type: 'PDF',
-      date: '2024-03-01',
-      size: '2.5 MB',
+      date: '2024-03-17',
+      size: '1.2 MB',
     },
     {
       id: '2',
-      name: 'NGO Partnership Analysis Q1 2024',
+      name: 'NGO Distribution Report',
       type: 'CSV',
-      date: '2024-03-15',
-      size: '1.8 MB',
+      date: '2024-03-16',
+      size: '856 KB',
     },
     {
       id: '3',
-      name: 'Food Waste Reduction Report',
+      name: 'Inventory Status',
       type: 'PDF',
-      date: '2024-03-10',
-      size: '3.2 MB',
+      date: '2024-03-15',
+      size: '2.1 MB',
     },
   ];
 
-  const handleGenerateReport = (format: 'pdf' | 'csv') => {
-    setLoading(true);
-    // Simulating API call
-    setTimeout(() => {
-      const newReportData = [
-        { date: '2024-03-30', ngoName: 'Food Bank A', mealsCount: 50, status: 'Delivered', deliveryTime: '45 mins' },
-        { date: '2024-03-30', ngoName: 'Community Kitchen B', mealsCount: 30, status: 'In Transit', deliveryTime: '30 mins' },
-        { date: '2024-03-30', ngoName: 'Shelter C', mealsCount: 40, status: 'Delivered', deliveryTime: '35 mins' },
-      ];
-      setReportData(newReportData);
-      setLoading(false);
-    }, 1000);
+  const generatePDF = (data: any) => {
+    // Create a temporary element to hold the data
+    const element = document.createElement('div');
+    element.innerHTML = `
+      <h1>Report: ${data.name}</h1>
+      <p>Generated on: ${new Date().toLocaleString()}</p>
+      <hr />
+      <pre>${JSON.stringify(data, null, 2)}</pre>
+    `;
+
+    // Use html2canvas and jsPDF
+    import('html2canvas').then(html2canvas => {
+      html2canvas.default(element).then(canvas => {
+        const imgData = canvas.toDataURL('image/png');
+        import('jspdf').then(jsPDF => {
+          const pdf = new jsPDF.default();
+          const imgProps = pdf.getImageProperties(imgData);
+          const pdfWidth = pdf.internal.pageSize.getWidth();
+          const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+          pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+          pdf.save(`${data.name.toLowerCase().replace(/\s+/g, '_')}.pdf`);
+        });
+      });
+    });
   };
 
-  const handleDownloadReport = (format: 'pdf' | 'csv') => {
-    setLoading(true);
-    // Simulating download
-    setTimeout(() => {
-      console.log(`Downloading report in ${format} format`);
-      setLoading(false);
-    }, 1000);
+  const generateCSV = (data: any) => {
+    // Convert data to CSV format
+    const items = Array.isArray(data) ? data : [data];
+    const replacer = (key: string, value: any) => value === null ? '' : value;
+    const header = Object.keys(items[0]);
+    const csv = [
+      header.join(','),
+      ...items.map(row => header.map(fieldName => 
+        JSON.stringify(row[fieldName], replacer)).join(','))
+    ].join('\r\n');
+
+    // Create and download the file
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    if (navigator.msSaveBlob) {
+      navigator.msSaveBlob(blob, `${data.name.toLowerCase().replace(/\s+/g, '_')}.csv`);
+    } else {
+      link.href = URL.createObjectURL(blob);
+      link.setAttribute('download', `${data.name.toLowerCase().replace(/\s+/g, '_')}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
+  const handlePrint = (data: any) => {
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>${data.name}</title>
+            <style>
+              body { font-family: Arial, sans-serif; padding: 20px; }
+              table { border-collapse: collapse; width: 100%; }
+              th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+              th { background-color: #f2f2f2; }
+            </style>
+          </head>
+          <body>
+            <h1>${data.name}</h1>
+            <p>Generated on: ${new Date().toLocaleString()}</p>
+            <hr />
+            <pre>${JSON.stringify(data, null, 2)}</pre>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+    }
+  };
+
+  const handleShare = async (data: any) => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: data.name,
+          text: `Check out this report: ${data.name}`,
+          url: window.location.href,
+        });
+      } catch (error) {
+        console.error('Error sharing:', error);
+      }
+    } else {
+      // Fallback to copy to clipboard
+      const textArea = document.createElement('textarea');
+      textArea.value = `${data.name}\n${window.location.href}`;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      alert('Link copied to clipboard!');
+    }
+  };
+
+  const handleGenerateReport = (format: 'PDF' | 'CSV', reportData: any) => {
+    const data = {
+      ...reportData,
+      reportType,
+      dateRange,
+      generatedAt: new Date().toISOString(),
+    };
+
+    switch (format) {
+      case 'PDF':
+        generatePDF(data);
+        break;
+      case 'CSV':
+        generateCSV(data);
+        break;
+    }
   };
 
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+
+  const ngoDistribution = [
+    { name: 'Food Banks', value: 35 },
+    { name: 'Community Kitchens', value: 25 },
+    { name: 'Shelters', value: 20 },
+    { name: 'Others', value: 20 },
+  ];
+
+  const orderStatusData = [
+    { name: 'Delivered', value: 60, color: '#2196F3' },
+    { name: 'In Progress', value: 15, color: '#4CAF50' },
+    { name: 'Pending', value: 25, color: '#FFC107' }
+  ];
+
+  const renderCustomizedLabel = (props: any) => {
+    const { cx, cy, midAngle, innerRadius, outerRadius, percent, name } = props;
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.6;
+    const x = cx + radius * Math.cos(-midAngle * Math.PI / 180);
+    const y = cy + radius * Math.sin(-midAngle * Math.PI / 180);
+
+    return (
+      <text
+        x={x}
+        y={y}
+        fill="white"
+        textAnchor={x > cx ? 'start' : 'end'}
+        dominantBaseline="central"
+      >
+        {`${name} ${(percent * 100).toFixed(0)}%`}
+      </text>
+    );
+  };
 
   return (
     <Box sx={{ p: 3 }}>
@@ -152,14 +272,14 @@ const Reports: React.FC = () => {
           <Button
             variant="contained"
             startIcon={<PdfIcon />}
-            onClick={() => handleGenerateReport('pdf')}
+            onClick={() => handleGenerateReport('PDF', { name: 'Donation Trends', data: donationData })}
           >
             Generate PDF
           </Button>
           <Button
             variant="outlined"
             startIcon={<CsvIcon />}
-            onClick={() => handleGenerateReport('csv')}
+            onClick={() => handleGenerateReport('CSV', { name: 'Donation Trends', data: donationData })}
           >
             Export CSV
           </Button>
@@ -178,23 +298,20 @@ const Reports: React.FC = () => {
                   <LineChart data={donationData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
-                    <YAxis yAxisId="left" />
-                    <YAxis yAxisId="right" orientation="right" />
+                    <YAxis />
                     <Tooltip />
                     <Legend />
                     <Line
-                      yAxisId="left"
                       type="monotone"
-                      dataKey="meals"
+                      dataKey="donations"
                       stroke={theme.palette.primary.main}
-                      name="Meals Donated"
+                      name="Donations Received"
                     />
                     <Line
-                      yAxisId="right"
                       type="monotone"
-                      dataKey="ngos"
+                      dataKey="meals"
                       stroke={theme.palette.secondary.main}
-                      name="Active NGOs"
+                      name="Meals Distributed"
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -217,23 +334,27 @@ const Reports: React.FC = () => {
                   onChange={(e) => setReportType(e.target.value)}
                   fullWidth
                 >
-                  <MenuItem value="daily">Daily Report</MenuItem>
-                  <MenuItem value="weekly">Weekly Report</MenuItem>
-                  <MenuItem value="monthly">Monthly Report</MenuItem>
-                  <MenuItem value="quarterly">Quarterly Report</MenuItem>
+                  <MenuItem value="daily">Daily</MenuItem>
+                  <MenuItem value="weekly">Weekly</MenuItem>
+                  <MenuItem value="monthly">Monthly</MenuItem>
+                  <MenuItem value="yearly">Yearly</MenuItem>
                 </TextField>
                 <TextField
-                  select
-                  label="Date Range"
-                  value={dateRange}
-                  onChange={(e) => setDateRange(e.target.value)}
+                  label="Start Date"
+                  type="date"
+                  value={dateRange.start}
+                  onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
                   fullWidth
-                >
-                  <MenuItem value="last7">Last 7 Days</MenuItem>
-                  <MenuItem value="last30">Last 30 Days</MenuItem>
-                  <MenuItem value="last90">Last 90 Days</MenuItem>
-                  <MenuItem value="custom">Custom Range</MenuItem>
-                </TextField>
+                  InputLabelProps={{ shrink: true }}
+                />
+                <TextField
+                  label="End Date"
+                  type="date"
+                  value={dateRange.end}
+                  onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
+                  fullWidth
+                  InputLabelProps={{ shrink: true }}
+                />
               </Box>
             </CardContent>
           </StyledCard>
@@ -264,17 +385,20 @@ const Reports: React.FC = () => {
                     {' '}
                     {report.type}
                   </TableCell>
-                  <TableCell>{report.date}</TableCell>
+                  <TableCell>{new Date(report.date).toLocaleDateString()}</TableCell>
                   <TableCell>{report.size}</TableCell>
                   <TableCell>
-                    <IconButton size="small">
-                      <DownloadIcon />
+                    <IconButton size="small" onClick={() => handleGenerateReport('PDF', report)}>
+                      <PdfIcon />
                     </IconButton>
-                    <IconButton size="small">
-                      <ShareIcon />
+                    <IconButton size="small" onClick={() => handleGenerateReport('CSV', report)}>
+                      <CsvIcon />
                     </IconButton>
-                    <IconButton size="small">
+                    <IconButton size="small" onClick={() => handlePrint(report)}>
                       <PrintIcon />
+                    </IconButton>
+                    <IconButton size="small" onClick={() => handleShare(report)}>
+                      <ShareIcon />
                     </IconButton>
                   </TableCell>
                 </TableRow>
@@ -295,12 +419,7 @@ const Reports: React.FC = () => {
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={[
-                        { name: 'Food Banks', value: 35 },
-                        { name: 'Community Kitchens', value: 25 },
-                        { name: 'Shelters', value: 20 },
-                        { name: 'Others', value: 20 },
-                      ]}
+                      data={ngoDistribution}
                       cx="50%"
                       cy="50%"
                       labelLine={false}
@@ -308,7 +427,7 @@ const Reports: React.FC = () => {
                       fill="#8884d8"
                       dataKey="value"
                     >
-                      {donationData.map((entry, index) => (
+                      {ngoDistribution.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
@@ -335,8 +454,56 @@ const Reports: React.FC = () => {
                     <YAxis />
                     <Tooltip />
                     <Legend />
-                    <Bar dataKey="meals" fill={theme.palette.primary.main} name="Meals Donated" />
+                    <Bar dataKey="donations" fill={theme.palette.primary.main} name="Donations Received" />
+                    <Bar dataKey="meals" fill={theme.palette.secondary.main} name="Meals Distributed" />
                   </BarChart>
+                </ResponsiveContainer>
+              </Box>
+            </CardContent>
+          </StyledCard>
+        </Grid>
+
+        <Grid item xs={12} md={6}>
+          <StyledCard>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Order Status Distribution
+              </Typography>
+              <Box sx={{ height: 300, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={orderStatusData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={renderCustomizedLabel}
+                      outerRadius={100}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {orderStatusData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      formatter={(value: any) => `${value}%`}
+                      contentStyle={{
+                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                        border: 'none',
+                        borderRadius: '4px',
+                        boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
+                      }}
+                    />
+                    <Legend 
+                      verticalAlign="bottom" 
+                      height={36}
+                      iconType="circle"
+                      formatter={(value: string) => (
+                        <span style={{ color: '#fff', fontSize: '0.875rem' }}>{value}</span>
+                      )}
+                    />
+                  </PieChart>
                 </ResponsiveContainer>
               </Box>
             </CardContent>
