@@ -61,5 +61,18 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
-  }
+  },
+  "description": "A modern web application for managing hotel food donations and NGO deliveries.",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sunnykumar37/P2S-Hotel-Dashboard-New.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/sunnykumar37/P2S-Hotel-Dashboard-New/issues"
+  },
+  "homepage": "https://github.com/sunnykumar37/P2S-Hotel-Dashboard-New#readme"
 }
