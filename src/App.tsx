@@ -19,6 +19,7 @@ import {
   BarChart as BarChartIcon,
   Notifications as NotificationsIcon,
   VolunteerActivism as VolunteerActivismIcon,
+  Map as MapIcon,
 } from '@mui/icons-material';
 import Sidebar from './components/Sidebar';
 import Overview from './components/Overview';
@@ -27,16 +28,17 @@ import FoodListing from './components/FoodListing';
 import NGOPartners from './components/NGOPartners';
 import Reports from './components/Reports';
 import Communication from './components/Communication';
+import MapPage from './components/MapPage';
 import './App.css';
 
 const drawerWidth = 280;
 
 const App: React.FC = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [open, setOpen] = useState(true);
   const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
   const [mode, setMode] = useState<'light' | 'dark'>(prefersDarkMode ? 'dark' : 'light');
+  const [open, setOpen] = useState(true);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const theme = useMemo(
     () =>
@@ -107,6 +109,12 @@ const App: React.FC = () => {
       description: 'Overview of all activities',
     },
     {
+      text: 'Map',
+      path: '/map',
+      icon: <MapIcon />,
+      description: 'View location map',
+    },
+    {
       text: 'Donations',
       path: '/donations',
       icon: <VolunteerActivismIcon />,
@@ -163,6 +171,7 @@ const App: React.FC = () => {
         >
           <Routes>
             <Route path="/" element={<Overview />} />
+            <Route path="/map" element={<MapPage />} />
             <Route path="/donations" element={<DonationsManagement />} />
             <Route path="/food" element={<FoodListing />} />
             <Route path="/partners" element={<NGOPartners />} />

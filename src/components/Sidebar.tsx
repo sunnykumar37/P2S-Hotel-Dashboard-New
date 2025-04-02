@@ -22,6 +22,7 @@ import {
   DarkMode as DarkModeIcon,
   LightMode as LightModeIcon,
 } from '@mui/icons-material';
+import NotificationsComponent from './NotificationsComponent';
 
 const drawerWidth = 280;
 
@@ -97,10 +98,13 @@ const Sidebar: React.FC<SidebarProps> = ({
             sx={{
               color: theme.palette.text.primary,
               fontWeight: 500,
+              flexGrow: 1,
             }}
           >
             {menuItems.find(item => item.path === location.pathname)?.text || 'Overview'}
           </Typography>
+          
+          <NotificationsComponent />
         </Toolbar>
       </AppBar>
 
